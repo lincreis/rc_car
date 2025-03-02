@@ -10,7 +10,7 @@ echo "***********************************************"
 echo "[0%] Updating and installing dependencies..."
 echo "***********************************************"
 sudo apt update && sudo apt upgrade -y
-sudo apt install python3-pip python3-spidev python3-libgpiod python3-rpi.gpio python3-pil git npm -y
+sudo apt-get -y install python3-pip python3-spidev python3-libgpiod python3-rpi.gpio python3-pil git npm
 sudo pip3 install nrf24 spidev flask picamera2
 
 # Step 2: Making files executable
