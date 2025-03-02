@@ -1,5 +1,4 @@
-# web_server.py
-#!/usr/bin/python3
+#!/home/pi/rc_car/venv/bin/python3
 from flask import Flask, Response, render_template_string
 import picamera2
 import io
@@ -13,7 +12,20 @@ camera.configure(camera.create_preview_configuration(main={"size": (640, 480)}))
 camera.start()
 lock = Lock()
 
-# Global control variables
+LEFT_IN1, LEFT_IN2 = 17, 27
+RIGHT_IN3, RIGHT_IN4 = 18, 23
+ENA, ENB = 12, 13
+SERVO_PIN = 19
+LED1, LED2 = 20, 21
+GPIO.setmode(GPIO.BCM)
+GPIO.setup([LEFT_IN1, LEFT_IN2, RIGHT_IN3, RIGHT_IN4, ENA, ENB, SERVO_PIN, LED1, LED2], GPIO.OUT)
+left_pwm = GPIO.PWM(ENA, 100)
+right_pwm = GPIO.PWM(ENB, 100)
+servo_pwm = GPIO.PWM(SERVO_PIN, 50)
+left_pwm.start(0)
+right_pwm.start(0)
+servo_pwm.start(0)
+
 global_speed = 0
 global_steering = 0
 
@@ -118,14 +130,4 @@ def control(action):
     return '', 204
 
 if __name__ == '__main__':
-    # GPIO Setup (repeated here for standalone use)
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup([LEFT_IN1, LEFT_IN2, RIGHT_IN3, RIGHT_IN4, ENA, ENB, SERVO_PIN, LED1, LED2], GPIO.OUT)
-    global left_pwm, right_pwm, servo_pwm
-    left_pwm = GPIO.PWM(ENA, 100)
-    right_pwm = GPIO.PWM(ENB, 100)
-    servo_pwm = GPIO.PWM(SERVO_PIN, 50)
-    left_pwm.start(0)
-    right_pwm.start(0)
-    servo_pwm.start(0)
     app.run(host='0.0.0.0', port=5000, threaded=True)

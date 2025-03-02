@@ -1,8 +1,7 @@
-# robot_pi.py
-#!/usr/bin/python3
+#!/home/pi/rc_car/venv/bin/python3
 import time
 import struct
-from nrf24 import NRF24
+from RF24 import RF24, RF24_PA_MAX, RF24_1MBPS
 import RPi.GPIO as GPIO
 from threading import Thread
 
@@ -11,7 +10,7 @@ LEFT_IN1, LEFT_IN2 = 17, 27
 RIGHT_IN3, RIGHT_IN4 = 18, 23
 ENA, ENB = 12, 13
 SERVO_PIN = 19
-LED1, LED2 = 20, 21  # Future LEDs
+LED1, LED2 = 20, 21
 
 # GPIO Setup
 GPIO.setmode(GPIO.BCM)
@@ -24,20 +23,20 @@ right_pwm.start(0)
 servo_pwm.start(0)
 
 # NRF24 Setup
-radio = NRF24()
-radio.begin(0, 0, 8, 7)  # CE GPIO 8, CSN GPIO 7
+radio = RF24(8, 7)  # CE GPIO 8, CSN GPIO 7
+radio.begin()
 radio.setRetries(15, 15)
 radio.setPayloadSize(32)
 radio.setChannel(0x60)
-radio.setDataRate(NRF24.BR_1MBPS)
-radio.setPALevel(NRF24.PA_MAX)
-radio.openReadingPipe(1, [0xe7, 0xe7, 0xe7, 0xe7, 0xe7])
+radio.setDataRate(RF24_1MBPS)
+radio.setPALevel(RF24_PA_MAX)
+radio.openReadingPipe(1, bytes([0xe7, 0xe7, 0xe7, 0xe7, 0xe7]))
 radio.startListening()
 radio.printDetails()
 
 def set_servo(angle):
     angle = max(-90, min(90, angle))
-    duty = 2.5 + (angle + 90) / 18  # Map -90 to 90 to 2.5-12.5%
+    duty = 2.5 + (angle + 90) / 18
     servo_pwm.ChangeDutyCycle(duty)
 
 def set_motors(speed):

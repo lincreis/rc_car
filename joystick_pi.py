@@ -1,9 +1,9 @@
-# joystick_pi.py
-#!/usr/bin/python3
+#!/home/pi/rc_car/venv/bin/python3
 import spidev
 import time
-from nrf24 import NRF24
+from RF24 import RF24, RF24_PA_MAX, RF24_1MBPS
 import RPi.GPIO as GPIO
+import struct
 
 # MCP3008 Setup
 spi = spidev.SpiDev()
@@ -17,14 +17,14 @@ def read_adc(channel):
     return ((r[1] & 3) << 8) + r[2]
 
 # NRF24 Setup
-radio = NRF24()
-radio.begin(0, 0, 8, 7)  # CE GPIO 8, CSN GPIO 7
+radio = RF24(8, 7)  # CE GPIO 8, CSN GPIO 7
+radio.begin()
 radio.setRetries(15, 15)
 radio.setPayloadSize(32)
 radio.setChannel(0x60)
-radio.setDataRate(NRF24.BR_1MBPS)
-radio.setPALevel(NRF24.PA_MAX)
-radio.openWritingPipe([0xe7, 0xe7, 0xe7, 0xe7, 0xe7])
+radio.setDataRate(RF24_1MBPS)
+radio.setPALevel(RF24_PA_MAX)
+radio.openWritingPipe(bytes([0xe7, 0xe7, 0xe7, 0xe7, 0xe7]))
 radio.printDetails()
 
 # Joystick Button Setup
@@ -38,7 +38,6 @@ try:
         y_pos = read_adc(1)  # Y-axis (0-1023)
         button = not GPIO.input(6)  # Button pressed = 1
 
-        # Normalize to -100 to 100 for steering and speed
         steering = ((x_pos - 512) / 512) * 100  # -100 to 100
         speed = ((512 - y_pos) / 512) * 100     # -100 to 100
 
