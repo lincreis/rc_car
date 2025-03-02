@@ -40,7 +40,7 @@ cd rc_car
 echo "***********************************************"
 echo "[80%] Creating new Package.json..."
 echo "***********************************************"
-npm init
+npm init -y
 
 # Step 6: Reboot to apply changes
 echo "***********************************************"
