@@ -1,78 +1,54 @@
+# joystick_pi.py
 #!/usr/bin/python3
-from evdev import InputDevice, ecodes, list_devices
-import socket
-import struct
+import spidev
 import time
+from nrf24 import NRF24
+import RPi.GPIO as GPIO
 
-def find_joystick_device():
-    """Finds the event device path for the Thrustmaster T150RS."""
-    devices = [InputDevice(path) for path in list_devices()]
-    for device in devices:
-        if "Thrustmaster Thrustmaster T150RS" in device.name:
-            print(f"Found Thrustmaster T150RS at: {device.path}")
-            return device.path
-    print("Thrustmaster T150RS not found.")
-    return None
+# MCP3008 Setup
+spi = spidev.SpiDev()
+spi.open(0, 0)
+spi.max_speed_hz = 1350000
 
-device_path = find_joystick_device()
-if device_path is None:
-    exit()
+def read_adc(channel):
+    if channel < 0 or channel > 7:
+        return -1
+    r = spi.xfer2([1, (8 + channel) << 4, 0])
+    return ((r[1] & 3) << 8) + r[2]
 
-joystick = InputDevice(device_path)
-print("Connected to: {}".format(joystick))
+# NRF24 Setup
+radio = NRF24()
+radio.begin(0, 0, 8, 7)  # CE GPIO 8, CSN GPIO 7
+radio.setRetries(15, 15)
+radio.setPayloadSize(32)
+radio.setChannel(0x60)
+radio.setDataRate(NRF24.BR_1MBPS)
+radio.setPALevel(NRF24.PA_MAX)
+radio.openWritingPipe([0xe7, 0xe7, 0xe7, 0xe7, 0xe7])
+radio.printDetails()
 
-UDP_IP = "myrobot.local"
-UDP_PORT = 5005
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-# Calibration Constants (MUST BE CALIBRATED!)
-X_CENTER = 32767
-X_MIN = 0
-X_MAX = 65535
-THROTTLE_MAX = 1023
-BRAKE_MAX = 255
-Y_CENTER = 128
-Z_CENTER = 128
-
-# Steering Range Tuning (0-100)
-STEERING_RANGE_PERCENT = 100
-
-# Initialize variables
-throttle_percent = 100.0
-brake_percent = 100.0
-steering_value = 0.0
+# Joystick Button Setup
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(6, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 try:
-    for event in joystick.read_loop():
-        if event.type == ecodes.EV_ABS:
-            # Steering (ABS_X)
-            if event.code == ecodes.ABS_X:
-                if event.value > X_CENTER:
-                    steering_value = (event.value - X_CENTER) / (X_MAX - X_CENTER) * STEERING_RANGE_PERCENT
-                elif event.value < X_CENTER:
-                    steering_value = (event.value - X_CENTER) / (X_CENTER - X_MIN) * STEERING_RANGE_PERCENT
-                else:
-                    steering_value = 0
-                steering_value = max(-STEERING_RANGE_PERCENT, min(STEERING_RANGE_PERCENT, steering_value))
+    print("Joystick Pi: Sending data...")
+    while True:
+        x_pos = read_adc(0)  # X-axis (0-1023)
+        y_pos = read_adc(1)  # Y-axis (0-1023)
+        button = not GPIO.input(6)  # Button pressed = 1
 
-            # Throttle (ABS_RZ)
-            elif event.code == ecodes.ABS_RZ:
-                throttle_percent = event.value / THROTTLE_MAX * 100
-                throttle_percent = max(0, min(100, throttle_percent))
+        # Normalize to -100 to 100 for steering and speed
+        steering = ((x_pos - 512) / 512) * 100  # -100 to 100
+        speed = ((512 - y_pos) / 512) * 100     # -100 to 100
 
-            # Brake (ABS_Y or ABS_Z)
-            elif event.code == ecodes.ABS_Y:
-                brake_percent = event.value / BRAKE_MAX * 100
-                brake_percent = max(0, min(100, brake_percent))
-
-            # Pack and send data
-            data = struct.pack('fff', throttle_percent, brake_percent, steering_value)
-            sock.sendto(data, (UDP_IP, UDP_PORT))
-            print("Sent: T={:.1f}, B={:.1f}, S={:.1f}".format(
-                throttle_percent, brake_percent, steering_value))
+        payload = struct.pack("ffb", speed, steering, button)
+        radio.write(payload)
+        print(f"Sent: Speed={speed:.1f}, Steering={steering:.1f}, Button={button}")
+        time.sleep(0.1)
 
 except KeyboardInterrupt:
     print("Shutting down...")
 finally:
-    sock.close()
-    print("Socket closed.")
+    spi.close()
+    GPIO.cleanup()

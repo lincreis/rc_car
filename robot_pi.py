@@ -1,120 +1,86 @@
+# robot_pi.py
 #!/usr/bin/python3
-import socket
-import struct
 import time
+import struct
+from nrf24 import NRF24
 import RPi.GPIO as GPIO
-import pigpio
+from threading import Thread
 
 # Pin Definitions
-LEFT_IN1 = 17
-LEFT_IN2 = 27
-RIGHT_IN3 = 18
-RIGHT_IN4 = 23
+LEFT_IN1, LEFT_IN2 = 17, 27
+RIGHT_IN3, RIGHT_IN4 = 18, 23
+ENA, ENB = 12, 13
 SERVO_PIN = 19
+LED1, LED2 = 20, 21  # Future LEDs
 
-# Calibration Constants (MUST BE CALIBRATED!)
-STEERING_ZERO_POINT = 0.0
-STEERING_DEADBAND = 5
-BRAKE_ZERO_POINT = 0.0
-BRAKE_DEADBAND = 5
-
-# GPIO and pigpio Setup
+# GPIO Setup
 GPIO.setmode(GPIO.BCM)
-GPIO.setup([LEFT_IN1, LEFT_IN2, RIGHT_IN3, RIGHT_IN4], GPIO.OUT)
+GPIO.setup([LEFT_IN1, LEFT_IN2, RIGHT_IN3, RIGHT_IN4, ENA, ENB, SERVO_PIN, LED1, LED2], GPIO.OUT)
+left_pwm = GPIO.PWM(ENA, 100)
+right_pwm = GPIO.PWM(ENB, 100)
+servo_pwm = GPIO.PWM(SERVO_PIN, 50)
+left_pwm.start(0)
+right_pwm.start(0)
+servo_pwm.start(0)
 
-left_forward_pwm = GPIO.PWM(LEFT_IN1, 100)
-left_reverse_pwm = GPIO.PWM(LEFT_IN2, 100)
-right_forward_pwm = GPIO.PWM(RIGHT_IN3, 100)
-right_reverse_pwm = GPIO.PWM(RIGHT_IN4, 100)
-
-left_forward_pwm.start(0)
-left_reverse_pwm.start(0)
-right_forward_pwm.start(0)
-right_reverse_pwm.start(0)
-
-pi = pigpio.pi()
-if not pi.connected:
-    print("Error: pigpio daemon not running. Start with 'sudo pigpiod'")
-    exit()
-pi.set_mode(SERVO_PIN, pigpio.OUTPUT)
-pi.set_PWM_frequency(SERVO_PIN, 50)
-
-# UDP Setup
-UDP_IP = "0.0.0.0"
-UDP_PORT = 5005
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.bind((UDP_IP, UDP_PORT))
+# NRF24 Setup
+radio = NRF24()
+radio.begin(0, 0, 8, 7)  # CE GPIO 8, CSN GPIO 7
+radio.setRetries(15, 15)
+radio.setPayloadSize(32)
+radio.setChannel(0x60)
+radio.setDataRate(NRF24.BR_1MBPS)
+radio.setPALevel(NRF24.PA_MAX)
+radio.openReadingPipe(1, [0xe7, 0xe7, 0xe7, 0xe7, 0xe7])
+radio.startListening()
+radio.printDetails()
 
 def set_servo(angle):
-    """Sets servo angle."""
     angle = max(-90, min(90, angle))
-    pulse_width = int(((angle + 90) / 180) * (1330 - 630) + 630)
-    pi.set_servo_pulsewidth(SERVO_PIN, pulse_width)
+    duty = 2.5 + (angle + 90) / 18  # Map -90 to 90 to 2.5-12.5%
+    servo_pwm.ChangeDutyCycle(duty)
 
 def set_motors(speed):
-    """Controls motor speed."""
     speed = max(-100, min(100, speed))
-
     if speed > 0:
-        left_forward_pwm.ChangeDutyCycle(speed)
-        left_reverse_pwm.ChangeDutyCycle(0)
-        right_forward_pwm.ChangeDutyCycle(speed)
-        right_reverse_pwm.ChangeDutyCycle(0)
+        GPIO.output(LEFT_IN1, GPIO.HIGH)
+        GPIO.output(LEFT_IN2, GPIO.LOW)
+        GPIO.output(RIGHT_IN3, GPIO.HIGH)
+        GPIO.output(RIGHT_IN4, GPIO.LOW)
+        left_pwm.ChangeDutyCycle(speed)
+        right_pwm.ChangeDutyCycle(speed)
     elif speed < 0:
-        left_forward_pwm.ChangeDutyCycle(0)
-        left_reverse_pwm.ChangeDutyCycle(abs(speed))
-        right_forward_pwm.ChangeDutyCycle(0)
-        right_reverse_pwm.ChangeDutyCycle(abs(speed))
+        GPIO.output(LEFT_IN1, GPIO.LOW)
+        GPIO.output(LEFT_IN2, GPIO.HIGH)
+        GPIO.output(RIGHT_IN3, GPIO.LOW)
+        GPIO.output(RIGHT_IN4, GPIO.HIGH)
+        left_pwm.ChangeDutyCycle(abs(speed))
+        right_pwm.ChangeDutyCycle(abs(speed))
     else:
-        left_forward_pwm.ChangeDutyCycle(0)
-        left_reverse_pwm.ChangeDutyCycle(0)
-        right_forward_pwm.ChangeDutyCycle(0)
-        right_reverse_pwm.ChangeDutyCycle(0)
+        GPIO.output(LEFT_IN1, GPIO.LOW)
+        GPIO.output(LEFT_IN2, GPIO.LOW)
+        GPIO.output(RIGHT_IN3, GPIO.LOW)
+        GPIO.output(RIGHT_IN4, GPIO.LOW)
+        left_pwm.ChangeDutyCycle(0)
+        right_pwm.ChangeDutyCycle(0)
 
-# Main Loop
-STEERING_RANGE = 100 # Or your desired max value
+def control_loop():
+    try:
+        print("Robot Pi: Listening for data...")
+        while True:
+            if radio.available():
+                payload = radio.read(32)
+                speed, steering, button = struct.unpack("ffb", payload[:9])
+                set_motors(speed)
+                set_servo(steering)
+                print(f"Received: Speed={speed:.1f}, Steering={steering:.1f}, Button={button}")
+            time.sleep(0.1)
+    except KeyboardInterrupt:
+        print("Shutting down control...")
+    finally:
+        set_motors(0)
+        set_servo(0)
+        GPIO.cleanup()
 
-try:
-    print("Listening for joystick data...")
-    while True:
-        data, _ = sock.recvfrom(1024)
-        throttle_percent, brake_percent, steering_value = struct.unpack('fff', data)
-
-        # Calibration: Apply Deadbands
-        steering_value = 0.0 if abs(steering_value - STEERING_ZERO_POINT) < STEERING_DEADBAND else steering_value
-        brake_percent = 0.0 if abs(brake_percent - BRAKE_ZERO_POINT) < BRAKE_DEADBAND else brake_percent
-
-        # Control Logic
-        throttle = throttle_percent
-        steering = steering_value
-        brake = brake_percent
-
-        # Clamping
-        throttle = max(0, min(100, throttle))
-        steering = max(-STEERING_RANGE, min(STEERING_RANGE, steering))
-        brake = max(0, min(100, brake))
-
-        # Calculate Speed and Control
-        speed = throttle - brake
-        set_motors(speed)
-        set_servo(steering)
-
-        print("Throttle: {:.2f}, Brake: {:.2f}, Steering: {:.2f}, Speed: {:.2f}".format(
-            throttle, brake, steering, speed))
-
-except KeyboardInterrupt:
-    print("Shutting down...")
-except Exception as e:
-    print("Error: {}".format(e))
-
-finally:
-    set_motors(0)
-    set_servo(0)
-    left_forward_pwm.stop()
-    left_reverse_pwm.stop()
-    right_forward_pwm.stop()
-    right_reverse_pwm.stop()
-    GPIO.cleanup()
-    pi.stop()
-    sock.close()
-    print("Clean shutdown complete.")
+if __name__ == "__main__":
+    Thread(target=control_loop).start()
