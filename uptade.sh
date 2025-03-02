@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Pull latest changes from GitHub
-cd ~
+cd rc_car
 git pull origin main
 git stash         # Stash (hide) your local changes
 git pull origin main  # Pull latest changes from remote
