@@ -13,7 +13,7 @@ sudo apt update && sudo apt upgrade -y
 # Install essential packages
 sudo apt install -y python3-pip python3-spidev python3-libgpiod python3-rpi.gpio python3-pil git npm
 # Install virtual environment
-sudo apt install -y python3-full python3-pip python3-spidev python3-rpi.gpio python3-pil libnrf24-dev
+sudo apt install -y python3-full python3-pip python3-spidev python3-rpi.gpio python3-pil
 cd ~/rc_car
 python3 -m venv venv
 source venv/bin/activate
