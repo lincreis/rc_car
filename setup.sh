@@ -35,7 +35,7 @@ raspi-config nonint do_camera 0  # Enable Camera
 # Set up project directory
 echo "Setting up project directory..."
 cd /home/pi
-git clone git@github.com:lincreis/rc_car.git
+git clone https://github.com/lincreis/rc_car.git
 cd rc_car
 
 # Build RF24 library from source since libnrf24-dev is unavailable
