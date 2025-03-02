@@ -20,7 +20,7 @@ apt update && apt upgrade -y
 
 # Install essential tools and libraries
 echo "Installing system dependencies..."
-apt install -y python3 python3-pip python3-dev python3-venv python3-git python3-npm \
+apt install -y python3 python3-pip python3-dev python3-venv python3-git \
     build-essential pkg-config libcap-dev libnrf24-dev \
     python3-rpi.gpio python3-spidev \
     ffmpeg libavformat-dev libavcodec-dev libavdevice-dev \
@@ -37,6 +37,18 @@ cd /home/pi
 git clone git@github.com:lincreis/rc_car.git
 cd rc_car
 
+# Build RF24 library from source since libnrf24-dev is unavailable
+echo "Building RF24 C++ library from source..."
+git clone https://github.com/nRF24/RF24.git
+cd RF24
+mkdir -p build
+cd build
+cmake ..
+make -j1  # Single-threaded due to Pi Zero's limited resources
+make install
+ldconfig  # Update library cache
+cd ../..
+
 # Create and activate virtual environment
 echo "Creating Python 3.11 virtual environment..."
 python3 -m venv venv
@@ -49,10 +61,6 @@ pip install --upgrade pip
 # Install Python packages
 echo "Installing Python packages..."
 pip install RF24 flask av==10.0.0 picamera2  # av 10.0.0 works with FFmpeg 6
-
-# Creating package.json file
-echo "Creating package.json file..."
-npm init -y
 
 # Set permissions on scripts
 cd /home/pi/rc_car
