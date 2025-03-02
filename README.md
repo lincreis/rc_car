@@ -6,4 +6,4 @@ Raspberry Pi Zero RC Car
 ```bash
 wget https://raw.githubusercontent.com/lincreis/rc_car/refs/heads/master/setup.sh
 sudo chmod +x setup.sh
-./setup_robot.sh
+sudo ./setup.sh
