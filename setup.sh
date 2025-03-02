@@ -10,7 +10,13 @@ echo "***********************************************"
 echo "[0%] Updating and installing dependencies..."
 echo "***********************************************"
 sudo apt update && sudo apt upgrade -y
-sudo apt-get -y install python3-pip python3-spidev python3-libgpiod python3-rpi.gpio python3-pil git npm
+# Install essential packages
+sudo apt install -y python3-pip python3-spidev python3-libgpiod python3-rpi.gpio python3-pil git npm
+# Install virtual environment
+sudo apt install -y python3-full python3-pip python3-spidev python3-rpi.gpio python3-pil libnrf24-dev
+cd ~/rc_car
+python3 -m venv venv
+source venv/bin/activate
 sudo pip3 install nrf24 spidev flask picamera2
 
 # Step 2: Making files executable
