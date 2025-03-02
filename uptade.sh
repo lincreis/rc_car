@@ -17,5 +17,9 @@ fi
 sudo chmod +x robot_pi.py web_server.py
 
 # Reboot
-echo "Reboot in 5 seconds"
+echo "************************"
+echo "************************"
+echo "Update Complete"
+echo "************************"
+echo "************************"
 sleep 5
