@@ -12,11 +12,11 @@ fi
 # Update system
 apt update && apt upgrade -y
 
-# Install required packages including build dependencies for RF24
+# Install required packages including build dependencies for RF24 and FFmpeg
 apt install -y python3-pip python3-venv git libatlas-base-dev libopenjp2-7 \
     raspberrypi-kernel-headers libjpeg-dev libpng-dev libcamera-apps-lite \
     python3-pyqt5 python3-prctl libcap-dev build-essential python3-dev \
-    libraspberrypi-dev
+    libraspberrypi-dev libavcodec-dev libavformat-dev libswscale-dev libavutil-dev
 
 # Enable SPI and Camera interfaces
 echo "Enabling SPI and Camera interfaces..."
@@ -35,8 +35,11 @@ python3 -m venv venv
 source venv/bin/activate
 
 pip install --upgrade pip
-pip install flask picamera2 RPi.GPIO spidev numpy
-# Explicitly install spidev again to ensure it works
+# Install packages with pre-built wheels where possible
+pip install flask RPi.GPIO spidev numpy
+# Install picamera2 with minimal dependencies (no av if possible)
+pip install "picamera2[min]"
+# Force reinstall spidev to ensure it’s there
 pip install spidev --no-cache-dir --force-reinstall
 
 # Install RF24 from source
@@ -55,6 +58,7 @@ rm -rf RF24
 echo "Verifying Python package installations..."
 python3 -c "import spidev; print('spidev installed:', spidev.__version__)"
 python3 -c "import RF24; print('RF24 installed:', RF24.__version__)"
+python3 -c "import picamera2; print('picamera2 installed:', picamera2.__version__)"
 
 # Create systemd services for Robot Pi
 cat > /etc/systemd/system/robot_web.service << 'EOF'
