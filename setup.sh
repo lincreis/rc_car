@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Exit on any error
+set -e
+
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
     echo "Please run as root (sudo)"
@@ -33,6 +36,8 @@ source venv/bin/activate
 
 pip install --upgrade pip
 pip install flask picamera2 RPi.GPIO spidev numpy
+# Explicitly install spidev again to ensure it works
+pip install spidev --no-cache-dir --force-reinstall
 
 # Install RF24 from source
 echo "Installing RF24 from source..."
@@ -45,6 +50,11 @@ cd pyRF24
 python3 setup.py install
 cd ../..
 rm -rf RF24
+
+# Verify installations
+echo "Verifying Python package installations..."
+python3 -c "import spidev; print('spidev installed:', spidev.__version__)"
+python3 -c "import RF24; print('RF24 installed:', RF24.__version__)"
 
 # Create systemd services for Robot Pi
 cat > /etc/systemd/system/robot_web.service << 'EOF'
