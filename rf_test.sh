@@ -2,6 +2,7 @@
 
 # Script to set up and test NRF24L01+PA+LNA on Raspberry Pi Zero
 # Custom pinout: CE on GPIO 8, CSN on GPIO 7
+# Using nrf24 library with pigpio
 # Date: March 03, 2025
 
 echo "Starting NRF24L01+PA+LNA setup and test on Raspberry Pi Zero..."
@@ -22,7 +23,7 @@ fi
 
 # Install required packages
 echo "Installing necessary dependencies..."
-sudo apt install -y python3-pip python3-dev python3-spidev python3-venv git
+sudo apt install -y python3-pip python3-dev python3-spidev python3-venv git pigpio python3-pigpio
 
 # Create a directory for the test files
 echo "Creating test directory..."
@@ -34,39 +35,43 @@ echo "Creating and activating Python virtual environment..."
 python3 -m venv nrf24_venv
 source nrf24_venv/bin/activate
 
-# Install required Python libraries in the virtual environment
-echo "Installing NRF24 and spidev Python libraries in virtual environment..."
-pip3 install circuitpython-nrf24l01 spidev
+# Install nrf24 library in the virtual environment
+echo "Installing nrf24 Python library in virtual environment..."
+pip3 install nrf24
+
+# Start pigpiod daemon if not already running
+echo "Checking and starting pigpiod daemon..."
+if ! pgrep -f pigpiod > /dev/null; then
+    sudo pigpiod
+    sleep 2  # Give the daemon a moment to start
+    echo "pigpiod daemon started."
+else
+    echo "pigpiod daemon is already running."
+fi
 
 # Create a Python transmitter script with custom CE and CSN pins
 echo "Creating transmitter test script..."
 cat << EOF > nrf24_transmitter.py
 import time
-import board
-import busio
-import digitalio
-from circuitpython_nrf24l01 import RF24
-
-# SPI setup with custom pins
-spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
-ce = digitalio.DigitalInOut(board.D8)  # CE on GPIO 8
-csn = digitalio.DigitalInOut(board.D7)  # CSN on GPIO 7
+from nrf24 import NRF24
 
 # Initialize NRF24L01
-radio = RF24(spi, csn, ce)
-radio.set_pa_level(0)  # 0 = max power (PA_MAX), adjust if needed
-radio.channel = 0x60  # Set channel (hex)
-radio.data_rate = 1000  # 1 Mbps
-radio.open_tx_pipe(b"\xe7\xe7\xe7\xe7\xe7")  # Writing pipe
-radio.open_rx_pipe(1, b"\xc2\xc2\xc2\xc2\xc2")  # Reading pipe
-
-print("NRF24L01 configuration:")
-radio.print_details()
+radio = NRF24()
+radio.begin(1, 0, 7, 8)  # spi_bus=1, spi_cs=0 (GPIO 7), ce_pin=8
+radio.setRetries(15, 15)  # Max retries and delay
+radio.setPayloadSize(32)
+radio.setChannel(0x60)
+radio.setDataRate(NRF24.BR_1MBPS)
+radio.setPALevel(NRF24.PA_MAX)
+radio.setAutoAck(True)
+radio.openWritingPipe([0xe7, 0xe7, 0xe7, 0xe7, 0xe7])
+radio.openReadingPipe(1, [0xc2, 0xc2, 0xc2, 0xc2, 0xc2])
+radio.printDetails()
 
 print("Starting transmission test...")
 while True:
     message = "Hello NRF24L01"
-    radio.send(message.encode('utf-8'))
+    radio.write(message.encode('utf-8'))
     print(f"Sent: {message}")
     time.sleep(1)
 EOF
@@ -75,34 +80,31 @@ EOF
 echo "Creating receiver test script (optional)..."
 cat << EOF > nrf24_receiver.py
 import time
-import board
-import busio
-import digitalio
-from circuitpython_nrf24l01 import RF24
-
-# SPI setup with custom pins
-spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
-ce = digitalio.DigitalInOut(board.D8)  # CE on GPIO 8
-csn = digitalio.DigitalInOut(board.D7)  # CSN on GPIO 7
+from nrf24 import NRF24
 
 # Initialize NRF24L01
-radio = RF24(spi, csn, ce)
-radio.set_pa_level(0)  # 0 = max power (PA_MAX), adjust if needed
-radio.channel = 0x60  # Set channel (hex)
-radio.data_rate = 1000  # 1 Mbps
-radio.open_tx_pipe(b"\xc2\xc2\xc2\xc2\xc2")  # Writing pipe
-radio.open_rx_pipe(1, b"\xe7\xe7\xe7\xe7\xe7")  # Reading pipe
-
-print("NRF24L01 configuration:")
-radio.print_details()
+radio = NRF24()
+radio.begin(1, 0, 7, 8)  # spi_bus=1, spi_cs=0 (GPIO 7), ce_pin=8
+radio.setRetries(15, 15)  # Max retries and delay
+radio.setPayloadSize(32)
+radio.setChannel(0x60)
+radio.setDataRate(NRF24.BR_1MBPS)
+radio.setPALevel(NRF24.PA_MAX)
+radio.setAutoAck(True)
+radio.openWritingPipe([0xc2, 0xc2, 0xc2, 0xc2, 0xc2])
+radio.openReadingPipe(1, [0xe7, 0xe7, 0xe7, 0xe7, 0xe7])
+radio.printDetails()
 
 print("Starting receiver test...")
-radio.listen = True
+radio.startListening()
 
 while True:
     if radio.available():
-        data = radio.recv()
-        print(f"Received: {data.decode('utf-8')}")
+        received = radio.read()
+        try:
+            print(f"Received: {received.decode('utf-8')}")
+        except UnicodeDecodeError:
+            print(f"Received (raw): {received}")
     time.sleep(0.1)
 EOF
 
