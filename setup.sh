@@ -2,6 +2,7 @@
 
 # setup_rc_car.sh
 # Installs RF24 and dependencies for RC car project on Raspberry Pi OS Bookworm with Python 3.11.2
+# Clones project files from GitHub repository
 
 # Exit on any error
 set -e
@@ -39,20 +40,19 @@ sed -i 's/CONF_SWAPSIZE=100/CONF_SWAPSIZE=1024/' /etc/dphys-swapfile
 dphys-swapfile setup
 dphys-swapfile swapon
 
-# Set up project directory
+# Set up project directory by cloning from GitHub
 echo "Setting up project directory..."
 cd /home/pi
 git clone https://github.com/lincreis/rc_car.git
 cd rc_car
 
-# Check for required Python files
-echo "Checking for Python scripts..."
+# Verify required Python files are present in the cloned repository
+echo "Checking for Python scripts in cloned repository..."
 for file in joystick_pi.py robot_pi.py web_server.py; do
-    if [ ! -f "/home/pi/$file" ]; then
-        echo "Error: $file not found in /home/pi/. Please provide it alongside this script."
+    if [ ! -f "$file" ]; then
+        echo "Error: $file not found in ~/rc_car/. Ensure the repository contains all required scripts."
         exit 1
     fi
-    cp "/home/pi/$file" .
 done
 
 # Clone and build RF24 C++ library from source
