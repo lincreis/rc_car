@@ -34,74 +34,75 @@ echo "Creating and activating Python virtual environment..."
 python3 -m venv nrf24_venv
 source nrf24_venv/bin/activate
 
-# Install the NRF24 library in the virtual environment
-echo "Installing NRF24 Python library in virtual environment..."
-pip3 install git+https://github.com/BLavery/lib_nrf24.git
+# Install required Python libraries in the virtual environment
+echo "Installing NRF24 and spidev Python libraries in virtual environment..."
+pip3 install circuitpython-nrf24l01 spidev
 
 # Create a Python transmitter script with custom CE and CSN pins
 echo "Creating transmitter test script..."
 cat << EOF > nrf24_transmitter.py
-import spidev
 import time
-from lib_nrf24 import NRF24
-import RPi.GPIO as GPIO
+import board
+import busio
+import digitalio
+from circuitpython_nrf24l01 import RF24
 
-GPIO.setmode(GPIO.BCM)
-pipes = [[0xe7, 0xe7, 0xe7, 0xe7, 0xe7], [0xc2, 0xc2, 0xc2, 0xc2, 0xc2]]
+# SPI setup with custom pins
+spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
+ce = digitalio.DigitalInOut(board.D8)  # CE on GPIO 8
+csn = digitalio.DigitalInOut(board.D7)  # CSN on GPIO 7
 
-radio = NRF24(GPIO, spidev.SpiDev())
-radio.begin(1, 8)  # CSN on GPIO 7 (SPI CE1), CE on GPIO 8
-radio.setPayloadSize(32)
-radio.setChannel(0x60)
-radio.setDataRate(NRF24.BR_1MBPS)
-radio.setPALevel(NRF24.PA_MAX)
-radio.setAutoAck(True)
-radio.enableDynamicPayloads()
-radio.enableAckPayload()
-radio.openWritingPipe(pipes[0])
-radio.openReadingPipe(1, pipes[1])
-radio.printDetails()
+# Initialize NRF24L01
+radio = RF24(spi, csn, ce)
+radio.set_pa_level(0)  # 0 = max power (PA_MAX), adjust if needed
+radio.channel = 0x60  # Set channel (hex)
+radio.data_rate = 1000  # 1 Mbps
+radio.open_tx_pipe(b"\xe7\xe7\xe7\xe7\xe7")  # Writing pipe
+radio.open_rx_pipe(1, b"\xc2\xc2\xc2\xc2\xc2")  # Reading pipe
+
+print("NRF24L01 configuration:")
+radio.print_details()
 
 print("Starting transmission test...")
 while True:
-    message = list("Hello NRF24L01")
-    radio.write(message)
-    print("Sent: {}".format("".join(map(chr, message))))
+    message = "Hello NRF24L01"
+    radio.send(message.encode('utf-8'))
+    print(f"Sent: {message}")
     time.sleep(1)
 EOF
 
 # Create a Python receiver script with custom CE and CSN pins (optional)
 echo "Creating receiver test script (optional)..."
 cat << EOF > nrf24_receiver.py
-import spidev
 import time
-from lib_nrf24 import NRF24
-import RPi.GPIO as GPIO
+import board
+import busio
+import digitalio
+from circuitpython_nrf24l01 import RF24
 
-GPIO.setmode(GPIO.BCM)
-pipes = [[0xe7, 0xe7, 0xe7, 0xe7, 0xe7], [0xc2, 0xc2, 0xc2, 0xc2, 0xc2]]
+# SPI setup with custom pins
+spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
+ce = digitalio.DigitalInOut(board.D8)  # CE on GPIO 8
+csn = digitalio.DigitalInOut(board.D7)  # CSN on GPIO 7
 
-radio = NRF24(GPIO, spidev.SpiDev())
-radio.begin(1, 8)  # CSN on GPIO 7 (SPI CE1), CE on GPIO 8
-radio.setPayloadSize(32)
-radio.setChannel(0x60)
-radio.setDataRate(NRF24.BR_1MBPS)
-radio.setPALevel(NRF24.PA_MAX)
-radio.setAutoAck(True)
-radio.enableDynamicPayloads()
-radio.enableAckPayload()
-radio.openWritingPipe(pipes[1])
-radio.openReadingPipe(1, pipes[0])
-radio.printDetails()
+# Initialize NRF24L01
+radio = RF24(spi, csn, ce)
+radio.set_pa_level(0)  # 0 = max power (PA_MAX), adjust if needed
+radio.channel = 0x60  # Set channel (hex)
+radio.data_rate = 1000  # 1 Mbps
+radio.open_tx_pipe(b"\xc2\xc2\xc2\xc2\xc2")  # Writing pipe
+radio.open_rx_pipe(1, b"\xe7\xe7\xe7\xe7\xe7")  # Reading pipe
+
+print("NRF24L01 configuration:")
+radio.print_details()
 
 print("Starting receiver test...")
-radio.startListening()
+radio.listen = True
 
 while True:
     if radio.available():
-        received_message = []
-        radio.read(received_message, radio.getDynamicPayloadSize())
-        print("Received: {}".format("".join(map(chr, received_message))))
+        data = radio.recv()
+        print(f"Received: {data.decode('utf-8')}")
     time.sleep(0.1)
 EOF
 
@@ -128,5 +129,5 @@ echo "To stop, use 'pkill -f nrf24_transmitter.py' or reboot."
 echo "If SPI was just enabled, please reboot and rerun this script with './nrf24_test.sh'."
 wait
 
-# Deactivate the virtual environment when done (though script runs in background)
+# Deactivate the virtual environment
 deactivate
