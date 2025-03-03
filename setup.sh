@@ -20,7 +20,7 @@ apt update && apt upgrade -y
 
 # Install essential tools and libraries
 echo "Installing system dependencies..."
-apt install -y python3 python3-pip python3-dev python3-venv \
+apt install -y python3 python3-pip python3-dev python3-venv python3-setuptools python3-wheel \
     build-essential pkg-config libcap-dev \
     python3-rpi.gpio python3-spidev \
     ffmpeg libavformat-dev libavcodec-dev libavdevice-dev \
