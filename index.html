@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RC Car Control</title>
+    <style>
+        .control-pad { width: 300px; height: 300px; border: 1px solid black; position: relative; }
+        .joystick { width: 20px; height: 20px; background: red; position: absolute; border-radius: 50%; }
+        img { max-width: 640px; }
+    </style>
+</head>
+<body>
+    <h1>RC Car Control</h1>
+    <img src="{{ url_for('video_feed') }}">
+    <div class="control-pad" id="control">
+        <div class="joystick" id="stick"></div>
+    </div>
+    <button onclick="toggleLED(1)">Toggle LED 1</button>
+    <button onclick="toggleLED(2)">Toggle LED 2</button>
+    <button onclick="shutdown()">Shutdown</button>
+
+    <script>
+        const pad = document.getElementById('control');
+        const stick = document.getElementById('stick');
+        let ledStates = [0, 0];
+
+        function sendControl(x, y) {
+            const throttle = Math.max(0, -y) * 100;
+            const steering = x * 100;
+            fetch(`/control/move/${throttle},${steering}`);
+        }
+
+        function updateStick(x, y) {
+            stick.style.left = `${x + 140}px`;
+            stick.style.top = `${y + 140}px`;
+        }
+
+        pad.onmousemove = (e) => {
+            if (e.buttons === 1) {
+                const rect = pad.getBoundingClientRect();
+                const x = Math.max(-150, Math.min(150, e.clientX - rect.left - 150));
+                const y = Math.max(-150, Math.min(150, e.clientY - rect.top - 150));
+                updateStick(x, y);
+                sendControl(x/150, y/150);
+            }
+        };
+
+        pad.ontouchmove = (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = pad.getBoundingClientRect();
+            const x = Math.max(-150, Math.min(150, touch.clientX - rect.left - 150));
+            const y = Math.max(-150, Math.min(150, touch.clientY - rect.top - 150));
+            updateStick(x, y);
+            sendControl(x/150, y/150);
+        };
+
+        function toggleLED(num) {
+            ledStates[num-1] = !ledStates[num-1];
+            fetch(`/control/led${num}/${ledStates[num-1] ? 1 : 0}`);
+        }
+
+        function shutdown() {
+            if (confirm('Shutdown car?')) {
+                fetch('/control/shutdown/0');
+            }
+        }
+    </script>
+</body>
+</html>
