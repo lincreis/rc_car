@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/home/pi/rc_car_venv/bin/python3
 import RPi.GPIO as GPIO
 import pigpio
 from pyrf24 import RF24, RF24_PA_MAX, RF24_1MBPS

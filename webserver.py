@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/home/pi/rc_car_venv/bin/python3
 from flask import Flask, Response, render_template
 import cv2
 import RPi.GPIO as GPIO
