@@ -3,6 +3,7 @@
 # Script to set up and test NRF24L01+PA+LNA on Raspberry Pi Zero
 # Custom pinout: CE on GPIO 8, CSN on GPIO 7
 # Using nrf24 library with pigpio
+# Designed for pi user (/home/pi/)
 # Date: March 03, 2025
 
 echo "Starting NRF24L01+PA+LNA setup and test on Raspberry Pi Zero..."
@@ -25,10 +26,10 @@ fi
 echo "Installing necessary dependencies..."
 sudo apt install -y python3-pip python3-dev python3-spidev python3-venv git pigpio python3-pigpio
 
-# Create a directory for the test files
-echo "Creating test directory..."
-mkdir -p ~/nrf24_test
-cd ~/nrf24_test
+# Create a directory for the test files in pi's home directory
+echo "Creating test directory in /home/pi/nrf24_test..."
+mkdir -p /home/pi/nrf24_test
+cd /home/pi/nrf24_test
 
 # Create and activate a Python virtual environment
 echo "Creating and activating Python virtual environment..."
@@ -62,9 +63,8 @@ if not pi.connected:
     print("Failed to connect to pigpiod daemon!")
     exit(1)
 
-# Initialize NRF24L01 with pigpio and CE pin
-radio = NRF24(pi, ce=8)  # CE on GPIO 8
-radio.set_spi(1, 0)  # SPI bus 1, CSN on GPIO 7 (SPI0 CE1)
+# Initialize NRF24L01 with pigpio, CE pin, and CSN pin
+radio = NRF24(pi, ce=8, csn=7, spi_bus=1)  # CE on GPIO 8, CSN on GPIO 7, SPI bus 1
 radio.setRetries(15, 15)  # Max retries and delay
 radio.setPayloadSize(32)
 radio.setChannel(0x60)
@@ -96,9 +96,8 @@ if not pi.connected:
     print("Failed to connect to pigpiod daemon!")
     exit(1)
 
-# Initialize NRF24L01 with pigpio and CE pin
-radio = NRF24(pi, ce=8)  # CE on GPIO 8
-radio.set_spi(1, 0)  # SPI bus 1, CSN on GPIO 7 (SPI0 CE1)
+# Initialize NRF24L01 with pigpio, CE pin, and CSN pin
+radio = NRF24(pi, ce=8, csn=7, spi_bus=1)  # CE on GPIO 8, CSN on GPIO 7, SPI bus 1
 radio.setRetries(15, 15)  # Max retries and delay
 radio.setPayloadSize(32)
 radio.setChannel(0x60)
@@ -137,7 +136,7 @@ fi
 # Test the transmitter using the virtual environment
 echo "Running transmitter test (Ctrl+C to stop)..."
 echo "If you have a second NRF24L01 device, run nrf24_receiver.py on it to see the messages."
-~/nrf24_test/nrf24_venv/bin/python3 nrf24_transmitter.py &
+/home/pi/nrf24_test/nrf24_venv/bin/python3 nrf24_transmitter.py &
 
 # Keep the script running to allow observation
 echo "Transmitter is running in the background. Check output above."
