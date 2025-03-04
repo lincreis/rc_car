@@ -53,11 +53,18 @@ fi
 echo "Creating transmitter test script..."
 cat << EOF > nrf24_transmitter.py
 import time
+import pigpio
 from nrf24 import NRF24
 
-# Initialize NRF24L01
-radio = NRF24()
-radio.begin(1, 0, 7, 8)  # spi_bus=1, spi_cs=0 (GPIO 7), ce_pin=8
+# Connect to pigpio daemon
+pi = pigpio.pi()
+if not pi.connected:
+    print("Failed to connect to pigpiod daemon!")
+    exit(1)
+
+# Initialize NRF24L01 with pigpio and CE pin
+radio = NRF24(pi, ce=8)  # CE on GPIO 8
+radio.set_spi(1, 0)  # SPI bus 1, CSN on GPIO 7 (SPI0 CE1)
 radio.setRetries(15, 15)  # Max retries and delay
 radio.setPayloadSize(32)
 radio.setChannel(0x60)
@@ -80,11 +87,18 @@ EOF
 echo "Creating receiver test script (optional)..."
 cat << EOF > nrf24_receiver.py
 import time
+import pigpio
 from nrf24 import NRF24
 
-# Initialize NRF24L01
-radio = NRF24()
-radio.begin(1, 0, 7, 8)  # spi_bus=1, spi_cs=0 (GPIO 7), ce_pin=8
+# Connect to pigpio daemon
+pi = pigpio.pi()
+if not pi.connected:
+    print("Failed to connect to pigpiod daemon!")
+    exit(1)
+
+# Initialize NRF24L01 with pigpio and CE pin
+radio = NRF24(pi, ce=8)  # CE on GPIO 8
+radio.set_spi(1, 0)  # SPI bus 1, CSN on GPIO 7 (SPI0 CE1)
 radio.setRetries(15, 15)  # Max retries and delay
 radio.setPayloadSize(32)
 radio.setChannel(0x60)
