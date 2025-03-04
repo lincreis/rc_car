@@ -1,6 +1,6 @@
 # requirements.txt for RC Car project
 Flask==3.0.3          # Web framework for the web server
-opencv-python==4.9.0.80  # OpenCV for video streaming (includes numpy)
+picamera2==0.3.12     # Lightweight camera library (pre-installed in Bookworm)
 pyrf24==0.2.2         # NRF24L01+ radio communication library
 RPi.GPIO==0.7.1       # GPIO control for Raspberry Pi
 pigpio==1.78          # More precise GPIO control (PWM for servo)
