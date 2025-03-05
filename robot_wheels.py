@@ -4,6 +4,7 @@ import pigpio
 from pyrf24 import RF24, RF24_PA_MAX, RF24_1MBPS
 import struct
 import time
+import os
 
 # Pin Definitions
 LEFT_IN1, LEFT_IN2 = 17, 27
@@ -15,6 +16,7 @@ radio = RF24(25, 0)  # CE on GPIO25, CSN on SPI0
 pipes = [0xF0F0F0F0E1, 0xF0F0F0F0D2]
 
 # GPIO Setup
+GPIO.setwarnings(False)  # Suppress GPIO warnings
 GPIO.setmode(GPIO.BCM)
 GPIO.setup([LEFT_IN1, LEFT_IN2, RIGHT_IN3, RIGHT_IN4], GPIO.OUT)
 pi = pigpio.pi()
@@ -27,8 +29,13 @@ right_reverse = GPIO.PWM(RIGHT_IN4, 100)
 
 
 def setup_hardware():
+    # Verify SPI is enabled
+    if not os.path.exists('/dev/spidev0.0'):
+        raise RuntimeError("SPI not enabled or accessible. Enable it with raspi-config and check permissions.")
+
     if not radio.begin():
-        raise RuntimeError("Radio hardware not responding!")
+        raise RuntimeError("Radio hardware not responding! Check wiring, SPI, and permissions.")
+
     radio.setPALevel(RF24_PA_MAX)
     radio.setDataRate(RF24_1MBPS)
     radio.openWritingPipe(pipes[1])
