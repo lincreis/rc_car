@@ -16,7 +16,7 @@ radio = RF24(25, 0)  # CE on GPIO25, CSN on SPI0
 pipes = [0xF0F0F0F0E1, 0xF0F0F0F0D2]
 
 # GPIO Setup
-GPIO.setwarnings(False)  # Suppress GPIO warnings
+GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
 GPIO.setup([LEFT_IN1, LEFT_IN2, RIGHT_IN3, RIGHT_IN4], GPIO.OUT)
 pi = pigpio.pi()
@@ -29,13 +29,10 @@ right_reverse = GPIO.PWM(RIGHT_IN4, 100)
 
 
 def setup_hardware():
-    # Verify SPI is enabled
     if not os.path.exists('/dev/spidev0.0'):
-        raise RuntimeError("SPI not enabled or accessible. Enable it with raspi-config and check permissions.")
-
+        raise RuntimeError("SPI not enabled or accessible!")
     if not radio.begin():
-        raise RuntimeError("Radio hardware not responding! Check wiring, SPI, and permissions.")
-
+        raise RuntimeError("Radio hardware not responding!")
     radio.setPALevel(RF24_PA_MAX)
     radio.setDataRate(RF24_1MBPS)
     radio.openWritingPipe(pipes[1])
@@ -76,7 +73,7 @@ def main():
         print("Listening for controls...")
         while True:
             if radio.available():
-                payload = radio.read(12)  # 3 floats = 12 bytes
+                payload = radio.read(12)
                 throttle, brake, steering = struct.unpack('fff', payload)
 
                 speed = max(0, min(100, throttle)) - max(0, min(100, brake))

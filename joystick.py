@@ -1,9 +1,8 @@
 #!/home/pi/rc_car_venv/bin/python3
 from evdev import InputDevice, ecodes, list_devices
-import socket
+from pyrf24 import RF24, RF24_PA_MAX, RF24_1MBPS
 import struct
 import time
-from pyrf24 import RF24, RF24_PA_MAX, RF24_1MBPS
 
 # NRF24 Setup
 radio = RF24(25, 0)  # CE on GPIO25, CSN on SPI0
@@ -19,7 +18,6 @@ def setup_radio():
     radio.openReadingPipe(1, pipes[1])
 
 
-# Joystick Setup
 def find_joystick_device():
     devices = [InputDevice(path) for path in list_devices()]
     for device in devices:
@@ -39,7 +37,6 @@ def main():
     joystick = InputDevice(device_path)
     print(f"Connected to: {joystick}")
 
-    # Calibration constants
     X_CENTER = 32767
     X_MIN = 0
     X_MAX = 65535
@@ -65,7 +62,6 @@ def main():
                 elif event.code == ecodes.ABS_Y:
                     brake = (event.value / BRAKE_MAX) * 100
 
-                # Pack and send via NRF24
                 payload = struct.pack('fff', throttle, brake, steering)
                 radio.write(payload)
                 print(f"Sent: T={throttle:.1f}, B={brake:.1f}, S={steering:.1f}")

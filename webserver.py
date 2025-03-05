@@ -6,6 +6,7 @@ import struct
 import threading
 from picamera2 import Picamera2
 import io
+import os
 
 app = Flask(__name__)
 
@@ -26,7 +27,10 @@ camera.start()
 control_lock = threading.Lock()
 
 def setup_radio():
-    radio.begin()
+    if not os.path.exists('/dev/spidev0.0'):
+        raise RuntimeError("SPI not enabled or accessible!")
+    if not radio.begin():
+        raise RuntimeError("Radio hardware not responding!")
     radio.setPALevel(RF24_PA_MAX)
     radio.setDataRate(RF24_1MBPS)
     radio.openWritingPipe(pipes[1])
@@ -60,7 +64,7 @@ def control(action, value):
     elif action == 'led2':
         GPIO.output(LED_PIN2, int(value))
     elif action == 'shutdown':
-        send_control(0, 0, 0)  # Stop car
+        send_control(0, 0, 0)
         threading.Timer(1.0, lambda: os.system('sudo shutdown now')).start()
     return 'OK'
 
