@@ -34,13 +34,13 @@ deactivate
 # Activate and install dependencies for web server
 source web_venv/bin/activate
 pip install --upgrade pip
-pip install pyrf24 spidev
+pip install picamera2
 deactivate
 
 # Activate and install dependencies for radio
 source nrf24_venv/bin/activate
 pip install --upgrade pip
-pip install picamera2
+pip install pyrf24 spidev
 deactivate
 
 # Make scripts executable
