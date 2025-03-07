@@ -3,11 +3,7 @@ import socket
 import json
 from http.server import SimpleHTTPRequestHandler
 import socketserver
-<<<<<<< HEAD
-import picamera
-=======
 from picamera2 import Picamera2
->>>>>>> 61312fb (Update installation files)
 import io
 import time
 
@@ -18,15 +14,9 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 class StreamingHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
-<<<<<<< HEAD
-        self.camera = picamera.PiCamera()
-        self.camera.resolution = (640, 480)
-        self.camera.framerate = 24
-=======
         self.camera = Picamera2()
         self.camera.configure(self.camera.create_video_configuration(main={"size": (640, 480)}))
         self.camera.start()
->>>>>>> 61312fb (Update installation files)
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
@@ -59,17 +49,6 @@ class StreamingHandler(SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-type', 'multipart/x-mixed-replace; boundary=frame')
             self.end_headers()
-<<<<<<< HEAD
-            stream = io.BytesIO()
-            try:
-                for _ in self.camera.capture_continuous(stream, 'jpeg', use_video_port=True):
-                    self.wfile.write(b'--frame\r\n')
-                    self.wfile.write(b'Content-Type: image/jpeg\r\n\r\n')
-                    self.wfile.write(stream.getvalue())
-                    self.wfile.write(b'\r\n')
-                    stream.seek(0)
-                    stream.truncate()
-=======
             try:
                 while True:
                     buf = io.BytesIO()
@@ -80,7 +59,6 @@ class StreamingHandler(SimpleHTTPRequestHandler):
                     self.wfile.write(buf.getvalue())
                     self.wfile.write(b'\r\n')
                     time.sleep(0.04)  # ~24 fps
->>>>>>> 61312fb (Update installation files)
             except Exception as e:
                 print(f"Streaming error: {e}")
         else:
