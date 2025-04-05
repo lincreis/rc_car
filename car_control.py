@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/home/pi/rc_car/venv/bin/python3
 import socket
 import struct
 import time

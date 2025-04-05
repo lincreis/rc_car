@@ -53,10 +53,8 @@ echo "Create virtual environments..."
 echo "******************************************************"
 echo "******************************************************"
 mkdir env
-cd ~/rc_car/env
-python3 -m venv car_venv
-python3 -m venv joystick_venv
-python3 -m venv nrf24_env
+cd ~/rc_car
+python3 -m venv venv
 
 # Activate and install dependencies for the Rc Car
 echo "******************************************************"
@@ -64,31 +62,9 @@ echo "******************************************************"
 echo "Activate and install dependencies for the Rc Car..."
 echo "******************************************************"
 echo "******************************************************"
-source car_venv/bin/activate
+source venv/bin/activate
 pip install --upgrade pip
-pip install RPi.GPIO pigpio
-deactivate
-
-# Activate and install dependencies for Joystick
-echo "******************************************************"
-echo "******************************************************"
-echo "Activate and install dependencies for Joystick..."
-echo "******************************************************"
-echo "******************************************************"
-source joystick_venv/bin/activate
-pip install --upgrade pip
-pip install evdev
-deactivate
-
-# Activate and install dependencies for Radio
-echo "******************************************************"
-echo "******************************************************"
-echo "Activate and install dependencies for Radio..."
-echo "******************************************************"
-echo "******************************************************"
-source nrf24_env/bin/activate
-pip install --upgrade pip
-pip install pyrf24 spidev
+pip install -r requirements.txt
 deactivate
 
 # Make scripts executable

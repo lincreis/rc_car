@@ -1,10 +1,6 @@
 # requirements.txt for RC Car project
-Flask==3.0.3          # Web framework for the web server
-picamera2==0.3.12     # Lightweight camera library (pre-installed in Bookworm)
-pyrf24==0.2.2         # NRF24L01+ radio communication library
-RPi.GPIO==0.7.1       # GPIO control for Raspberry Pi
-pigpio==1.78          # More precise GPIO control (PWM for servo)
-evdev==1.7.0          # Joystick input handling
-Werkzeug==3.0.3       # Dependency for Flask
-Jinja2==3.1.4         # Template engine for Flask
-MarkupSafe==2.1.5     # Dependency for Jinja2
+evdev==1.9.1
+pigpio==1.78
+RPi.GPIO==0.7.1
+pyrf24==0.4.5
+spidev==3.6
