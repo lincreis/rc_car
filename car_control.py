@@ -4,8 +4,6 @@ import struct
 import time
 import RPi.GPIO as GPIO
 import pigpio
-import json
-import os
 
 # Pin Definitions
 LEFT_IN1 = 17
@@ -13,18 +11,17 @@ LEFT_IN2 = 27
 RIGHT_IN3 = 18
 RIGHT_IN4 = 23
 SERVO_PIN = 19
-LED_PIN = 20  # Added LED control pin
 
-# Calibration Constants
+# Calibration Constants (adjust as needed)
 STEERING_ZERO_POINT = 0.0
 STEERING_DEADBAND = 5
 BRAKE_ZERO_POINT = 0.0
 BRAKE_DEADBAND = 5
+STEERING_RANGE = 90  # Max servo angle in degrees
 
-# GPIO Setup
+# GPIO and pigpio Setup
 GPIO.setmode(GPIO.BCM)
-GPIO.setup([LEFT_IN1, LEFT_IN2, RIGHT_IN3, RIGHT_IN4, LED_PIN], GPIO.OUT)
-GPIO.output(LED_PIN, GPIO.LOW)
+GPIO.setup([LEFT_IN1, LEFT_IN2, RIGHT_IN3, RIGHT_IN4], GPIO.OUT)
 
 left_forward_pwm = GPIO.PWM(LEFT_IN1, 100)
 left_reverse_pwm = GPIO.PWM(LEFT_IN2, 100)
@@ -38,7 +35,7 @@ right_reverse_pwm.start(0)
 
 pi = pigpio.pi()
 if not pi.connected:
-    print("Error: pigpio daemon not running")
+    print("Error: pigpio daemon not running. Start with 'sudo pigpiod'")
     exit()
 pi.set_mode(SERVO_PIN, pigpio.OUTPUT)
 pi.set_PWM_frequency(SERVO_PIN, 50)
@@ -49,14 +46,14 @@ UDP_PORT = 5005
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind((UDP_IP, UDP_PORT))
 
-
 def set_servo(angle):
-    angle = max(-90, min(90, angle))
-    pulse_width = int(((angle + 90) / 180) * (1330 - 630) + 630)
+    """Sets servo angle."""
+    angle = max(-STEERING_RANGE, min(STEERING_RANGE, angle))
+    pulse_width = int(((angle + 90) / 180) * (1330 - 630) + 630)  # Map -90 to 90 degrees to 630-1330 µs
     pi.set_servo_pulsewidth(SERVO_PIN, pulse_width)
 
-
 def set_motors(speed):
+    """Controls motor speed."""
     speed = max(-100, min(100, speed))
     if speed > 0:
         left_forward_pwm.ChangeDutyCycle(speed)
@@ -70,58 +67,44 @@ def set_motors(speed):
         right_reverse_pwm.ChangeDutyCycle(abs(speed))
     else:
         left_forward_pwm.ChangeDutyCycle(0)
-        left_reverse_pwm.start(0)
+        left_reverse_pwm.ChangeDutyCycle(0)
         right_forward_pwm.ChangeDutyCycle(0)
         right_reverse_pwm.ChangeDutyCycle(0)
 
-
-def control_led(state):
-    GPIO.output(LED_PIN, GPIO.HIGH if state else GPIO.LOW)
-
-
-def shutdown():
-    set_motors(0)
-    set_servo(0)
-    control_led(False)
-    os.system("sudo shutdown -h now")
-
-
 try:
-    print("Listening for control data...")
+    print("Listening for joystick data...")
     while True:
         data, _ = sock.recvfrom(1024)
-        try:
-            # Try to decode as JSON for web control
-            control_data = json.loads(data.decode())
-            if "shutdown" in control_data and control_data["shutdown"]:
-                shutdown()
-            throttle = control_data.get("throttle", 0)
-            brake = control_data.get("brake", 0)
-            steering = control_data.get("steering", 0)
-            led_state = control_data.get("led", False)
-            control_led(led_state)
-        except json.JSONDecodeError:
-            # Fallback to original UDP format
-            throttle, brake, steering = struct.unpack('fff', data)
+        throttle_percent, brake_percent, steering_value = struct.unpack('fff', data)
 
         # Apply deadbands
-        steering = 0.0 if abs(steering - STEERING_ZERO_POINT) < STEERING_DEADBAND else steering
-        brake = 0.0 if abs(brake - BRAKE_ZERO_POINT) < BRAKE_DEADBAND else brake
+        steering_value = 0.0 if abs(steering_value - STEERING_ZERO_POINT) < STEERING_DEADBAND else steering_value
+        brake_percent = 0.0 if abs(brake_percent - BRAKE_ZERO_POINT) < BRAKE_DEADBAND else brake_percent
 
         # Clamp values
-        throttle = max(0, min(100, throttle))
-        steering = max(-100, min(100, steering))
-        brake = max(0, min(100, brake))
+        throttle = max(0, min(100, throttle_percent))
+        steering = max(-STEERING_RANGE, min(STEERING_RANGE, steering_value))
+        brake = max(0, min(100, brake_percent))
 
+        # Calculate speed
         speed = throttle - brake
         set_motors(speed)
         set_servo(steering)
 
+        print(f"Throttle: {throttle:.2f}, Brake: {brake:.2f}, Steering: {steering:.2f}, Speed: {speed:.2f}")
+
+except KeyboardInterrupt:
+    print("Shutting down...")
 except Exception as e:
     print(f"Error: {e}")
 finally:
     set_motors(0)
     set_servo(0)
+    left_forward_pwm.stop()
+    left_reverse_pwm.stop()
+    right_forward_pwm.stop()
+    right_reverse_pwm.stop()
     GPIO.cleanup()
     pi.stop()
     sock.close()
+    print("Clean shutdown complete.")

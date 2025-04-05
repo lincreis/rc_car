@@ -1,76 +1,76 @@
-#!/home/pi/rc_car_venv/bin/python3
+#!/usr/bin/python3
 from evdev import InputDevice, ecodes, list_devices
-from pyrf24 import RF24, RF24_PA_MAX, RF24_1MBPS
+import socket
 import struct
 import time
 
-# NRF24 Setup
-radio = RF24(25, 0)  # CE on GPIO25, CSN on SPI0
-pipes = [0xF0F0F0F0E1, 0xF0F0F0F0D2]
-
-
-def setup_radio():
-    if not radio.begin():
-        raise RuntimeError("Radio hardware not responding!")
-    radio.setPALevel(RF24_PA_MAX)
-    radio.setDataRate(RF24_1MBPS)
-    radio.openWritingPipe(pipes[0])
-    radio.openReadingPipe(1, pipes[1])
-
-
 def find_joystick_device():
+    """Finds the event device path for the Thrustmaster T150RS."""
     devices = [InputDevice(path) for path in list_devices()]
     for device in devices:
-        if "Thrustmaster" in device.name:
-            print(f"Found joystick at: {device.path}")
+        if "Thrustmaster Thrustmaster T150RS" in device.name:
+            print(f"Found Thrustmaster T150RS at: {device.path}")
             return device.path
+    print("Thrustmaster T150RS not found.")
     return None
 
+# UDP configuration
+UDP_IP = "myrobot.local"  # Replace with the robot Pi's hostname or IP
+UDP_PORT = 5005
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-def main():
-    setup_radio()
-    device_path = find_joystick_device()
-    if not device_path:
-        print("No joystick found!")
-        exit(1)
+# Calibration constants (adjust as needed)
+X_CENTER = 32767
+X_MIN = 0
+X_MAX = 65535
+THROTTLE_MAX = 1023
+BRAKE_MAX = 255
+STEERING_RANGE_PERCENT = 100
 
-    joystick = InputDevice(device_path)
-    print(f"Connected to: {joystick}")
+# Initialize variables
+throttle_percent = 0.0
+brake_percent = 0.0
+steering_value = 0.0
 
-    X_CENTER = 32767
-    X_MIN = 0
-    X_MAX = 65535
-    THROTTLE_MAX = 1023
-    BRAKE_MAX = 255
-    STEERING_RANGE = 100
+# Find and connect to joystick
+device_path = find_joystick_device()
+if device_path is None:
+    print("Exiting due to no joystick found.")
+    exit()
 
-    try:
-        for event in joystick.read_loop():
-            if event.type == ecodes.EV_ABS:
-                throttle = 0.0
-                brake = 0.0
-                steering = 0.0
+joystick = InputDevice(device_path)
+print(f"Connected to: {joystick}")
 
-                if event.code == ecodes.ABS_X:
-                    value = event.value
-                    steering = ((value - X_CENTER) / (X_MAX - X_CENTER)) * STEERING_RANGE if value > X_CENTER else \
-                        ((value - X_CENTER) / (X_CENTER - X_MIN)) * STEERING_RANGE if value < X_CENTER else 0
+try:
+    for event in joystick.read_loop():
+        if event.type == ecodes.EV_ABS:
+            # Steering (ABS_X)
+            if event.code == ecodes.ABS_X:
+                if event.value > X_CENTER:
+                    steering_value = (event.value - X_CENTER) / (X_MAX - X_CENTER) * STEERING_RANGE_PERCENT
+                elif event.value < X_CENTER:
+                    steering_value = (event.value - X_CENTER) / (X_CENTER - X_MIN) * STEERING_RANGE_PERCENT
+                else:
+                    steering_value = 0
+                steering_value = max(-STEERING_RANGE_PERCENT, min(STEERING_RANGE_PERCENT, steering_value))
 
-                elif event.code == ecodes.ABS_RZ:
-                    throttle = (event.value / THROTTLE_MAX) * 100
+            # Throttle (ABS_RZ)
+            elif event.code == ecodes.ABS_RZ:
+                throttle_percent = (event.value / THROTTLE_MAX) * 100
+                throttle_percent = max(0, min(100, throttle_percent))
 
-                elif event.code == ecodes.ABS_Y:
-                    brake = (event.value / BRAKE_MAX) * 100
+            # Brake (ABS_Y)
+            elif event.code == ecodes.ABS_Y:
+                brake_percent = (event.value / BRAKE_MAX) * 100
+                brake_percent = max(0, min(100, brake_percent))
 
-                payload = struct.pack('fff', throttle, brake, steering)
-                radio.write(payload)
-                print(f"Sent: T={throttle:.1f}, B={brake:.1f}, S={steering:.1f}")
+            # Send data over UDP
+            data = struct.pack('fff', throttle_percent, brake_percent, steering_value)
+            sock.sendto(data, (UDP_IP, UDP_PORT))
+            print(f"Sent: T={throttle_percent:.1f}, B={brake_percent:.1f}, S={steering_value:.1f}")
 
-    except KeyboardInterrupt:
-        print("Shutting down...")
-    finally:
-        radio.powerDown()
-
-
-if __name__ == "__main__":
-    main()
+except KeyboardInterrupt:
+    print("Shutting down...")
+finally:
+    sock.close()
+    print("Socket closed.")
