@@ -86,7 +86,7 @@ echo "******************************************************"
 echo "Activate and install dependencies for Radio..."
 echo "******************************************************"
 echo "******************************************************"
-source web_venv/bin/activate
+source nrf24_env/bin/activate
 pip install --upgrade pip
 pip install pyrf24 spidev
 deactivate
