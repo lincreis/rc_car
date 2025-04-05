@@ -22,6 +22,7 @@ cd rc_car
 mkdir env
 cd ~/rc_car/env
 python3 -m venv car_venv
+python3 -m venv web_venv
 python3 -m venv nrf24_env
 
 # Activate and install dependencies for car control
@@ -30,20 +31,20 @@ pip install --upgrade pip
 pip install RPi.GPIO pigpio
 deactivate
 
-# Activate and install dependencies for joystick
-source joystick_env/bin/activate
+# Activate and install dependencies for web server
+source web_venv/bin/activate
 pip install --upgrade pip
-pip install evdev
+pip install pyrf24 spidev
 deactivate
 
 # Activate and install dependencies for radio
 source nrf24_venv/bin/activate
 pip install --upgrade pip
-pip install pyrf24 spidev
+pip install picamera2
 deactivate
 
 # Make scripts executable
-chmod +x car_control.py joystick.py
+chmod +x car_control.py web_server.py joystick.py
 
 echo "Setup complete! Access the web interface at http://<raspberry_pi_ip>:8000"
 echo "Rebooting in 5 seconds..."
