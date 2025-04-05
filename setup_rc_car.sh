@@ -22,25 +22,24 @@ cd rc_car
 mkdir env
 cd ~/rc_car/env
 python3 -m venv car_venv
-python3 -m venv web_venv
 python3 -m venv nrf24_env
 
-# Activate and install dependencies for car control
+# Activate and install dependencies for the Rc Car
 source car_venv/bin/activate
 pip install --upgrade pip
 pip install RPi.GPIO pigpio
 deactivate
 
-# Activate and install dependencies for web server
+# Activate and install dependencies for Joystick
+source joystick_venv/bin/activate
+pip install --upgrade pip
+pip install evdev
+deactivate
+
+# Activate and install dependencies for Radio
 source web_venv/bin/activate
 pip install --upgrade pip
 pip install pyrf24 spidev
-deactivate
-
-# Activate and install dependencies for radio
-source nrf24_venv/bin/activate
-pip install --upgrade pip
-pip install picamera2
 deactivate
 
 # Make scripts executable
